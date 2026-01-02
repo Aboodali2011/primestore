@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin — Prime Store</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="header">
+    <nav class="navbar">
+      <div class="logo-container">
+        <img class="logo" src="se.png" alt="Prime Store" />
+      </div>
+
+      <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false">☰</button>
+
+      <ul class="nav-menu" id="navMenu">
+        <li><a class="nav-link" href="index.html">Home</a></li>
+        <li><a class="nav-link" href="index.html#products">Products</a></li>
+        <li><a class="nav-link" href="free.html">Free</a></li>
+        <li><a class="nav-link" href="index.html#contact">Contact</a></li>
+        <li><a class="nav-link" href="terms.html">Terms</a></li>
+        <li><a class="nav-link" href="https://discord.gg/eNcPz4Jw2m" target="_blank" rel="noopener">Discord</a></li>
+        <li id="authSlot"></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="container" style="padding-top:26px; padding-bottom:46px;">
+    <h1 class="section-title" style="margin-top:18px;">Admin Panel</h1>
+
+    <div class="card" style="max-width:980px;margin:0 auto;">
+      <div class="card-body">
+        <p class="about-text">
+          This website is hosted as a <strong>static</strong> site on Netlify.
+          Orders are stored using <strong>Netlify Forms</strong> and invoices are sent using <strong>Netlify Functions</strong>.
+        </p>
+
+        <ol class="about-text" style="line-height:1.9;">
+          <li>Netlify → your site → <strong>Forms</strong> → you will see all orders and timestamps.</li>
+          <li>In Netlify (Site settings → Forms → Form notifications), enable email notifications to: <strong>okashahprimestore@gmail.com</strong>.</li>
+          <li>To send the <strong>Delivered</strong> confirmation email, use the form below (paste the order ID + customer email).</li>
+        </ol>
+
+        <div style="margin-top:18px;display:flex;flex-wrap:wrap;gap:10px;">
+          <a class="btn" href="https://app.netlify.com" target="_blank" rel="noopener">Open Netlify Dashboard</a>
+          <a class="btn" href="mailto:okashahprimestore@gmail.com" target="_blank" rel="noopener">Open Store Email</a>
+        </div>
+
+        <hr style="border:0;border-top:1px solid rgba(255,255,255,0.08);margin:22px 0;" />
+
+        <h2 style="margin:0 0 8px;">Send Delivery Confirmation</h2>
+        <p class="muted" style="margin:0 0 14px;">This will email the customer from the store email.</p>
+
+        <form id="deliveredForm" class="account-form" style="max-width:680px;">
+          <div class="form-group">
+            <label for="deliveredOrderId">Order ID</label>
+            <input id="deliveredOrderId" type="text" placeholder="e.g. PS-AB12CD-12345" required />
+          </div>
+
+          <div class="form-group">
+            <label for="deliveredCustomerEmail">Customer email</label>
+            <input id="deliveredCustomerEmail" type="email" placeholder="name@example.com" required />
+          </div>
+
+          <div class="form-group">
+            <label for="deliveredNote">Note (optional)</label>
+            <input id="deliveredNote" type="text" placeholder="e.g. Delivered via Discord / WhatsApp" />
+          </div>
+
+          <div class="form-actions">
+            <button class="primary-btn" type="submit">Send Delivered Email</button>
+          </div>
+        </form>
+
+        <p class="muted" style="margin-top:12px;">
+          If the email fails, check Netlify environment variables for SMTP and your email provider settings.
+        </p>
+      </div>
+    </div>
+  </main>
+
+
+  <!-- Admin Password Modal -->
+  <div class="modal-backdrop" id="adminPwdBackdrop" style="display:none;">
+    <div class="modal">
+      <h3 style="margin:0 0 10px;">Admin Login</h3>
+      <p class="muted" style="margin:0 0 14px;">Enter the admin password to access the dashboard.</p>
+      <form id="adminPwdForm" class="account-form" style="max-width:520px;">
+        <div class="form-group">
+          <label for="adminPassword">Password</label>
+          <input id="adminPassword" type="password" autocomplete="current-password" required />
+        </div>
+        <div class="form-actions">
+          <button class="primary-btn" type="submit">Sign In</button>
+        </div>
+      </form>
+      <p class="muted" id="adminPwdError" style="margin-top:10px; display:none;"></p>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Prime Store • okashah. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+  <script>
+
+    // Admin auth + dashboard
+    const ADMIN_TOKEN_KEY = 'ps_admin_token_v1';
+
+    function getAdminToken() {
+      return sessionStorage.getItem(ADMIN_TOKEN_KEY) || '';
+    }
+    function setAdminToken(t) {
+      sessionStorage.setItem(ADMIN_TOKEN_KEY, t);
+    }
+    function clearAdminToken() {
+      sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    }
+
+    function showAdminModal() {
+      const b = document.getElementById('adminPwdBackdrop');
+      if (b) b.style.display = 'flex';
+    }
+    function hideAdminModal() {
+      const b = document.getElementById('adminPwdBackdrop');
+      if (b) b.style.display = 'none';
+    }
+
+    async function adminLogin(password) {
+      const res = await fetch('/.netlify/functions/admin-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      return data.token;
+    }
+
+    function setStatus(msg) {
+      const el = document.getElementById('ordersStatus');
+      if (el) el.textContent = msg || '';
+    }
+
+    function fmtTime(iso) {
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString();
+      } catch {
+        return iso || '';
+      }
+    }
+
+    function contactLabel(d) {
+      const type = (d.customer_contact_type || '').toLowerCase();
+      const val = d.customer_contact || '';
+      if (!val) return '';
+      if (type === 'discord') return `Discord: ${val}`;
+      return `Mobile: ${val}`;
+    }
+
+    function esc(s) {
+      return String(s || '').replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    async function fetchOrders() {
+      const token = getAdminToken();
+      const tbody = document.getElementById('ordersTbody');
+      if (!token) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:14px 12px;" class="muted">Sign in to load orders.</td></tr>';
+        return;
+      }
+
+      setStatus('Loading…');
+      const res = await fetch('/.netlify/functions/list-orders?form=orders&limit=50', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to load orders');
+
+      const rows = (data.submissions || []).map((s) => {
+        const d = s.data || {};
+        const orderId = d.order_id || '';
+        const email = d.customer_email || '';
+        const total = d.total || '';
+        const created = fmtTime(s.created_at);
+        const contact = contactLabel(d);
+
+        return `
+          <tr style="border-top:1px solid rgba(255,255,255,0.06);">
+            <td style="padding:10px 12px; white-space:nowrap;">${esc(created)}</td>
+            <td style="padding:10px 12px; font-weight:600;">${esc(orderId)}</td>
+            <td style="padding:10px 12px;">${esc(email)}</td>
+            <td style="padding:10px 12px;">${esc(contact)}</td>
+            <td style="padding:10px 12px;">${esc(total)}</td>
+            <td style="padding:10px 12px;">
+              <button class="primary-btn" data-action="deliver" data-order="${esc(orderId)}" data-email="${esc(email)}" style="width:auto; padding:8px 12px;">Send Delivered</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      if (tbody) {
+        tbody.innerHTML = rows.length
+          ? rows.join('')
+          : '<tr><td colspan="6" style="padding:14px 12px;" class="muted">No orders found.</td></tr>';
+      }
+      setStatus(`Loaded ${rows.length} orders.`);
+    }
+
+    async function sendDelivered(orderId, customerEmail, note) {
+      const token = getAdminToken();
+      const res = await fetch('/.netlify/functions/send-delivered', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ orderId, customerEmail, note })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      return data;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Show admin login if missing token
+      if (!getAdminToken()) showAdminModal();
+
+      // Password form
+      const pwdForm = document.getElementById('adminPwdForm');
+      pwdForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pwd = document.getElementById('adminPassword')?.value || '';
+        const errEl = document.getElementById('adminPwdError');
+        if (errEl) errEl.style.display = 'none';
+
+        try {
+          const token = await adminLogin(pwd);
+          setAdminToken(token);
+          hideAdminModal();
+          showNotification('Admin signed in.');
+          await fetchOrders();
+        } catch (err) {
+          if (errEl) {
+            errEl.textContent = 'Invalid password.';
+            errEl.style.display = 'block';
+          }
+          console.error(err);
+        }
+      });
+
+      // Refresh button
+      document.getElementById('refreshOrdersBtn')?.addEventListener('click', () => {
+        fetchOrders().catch((e) => {
+          setStatus('');
+          showNotification('Failed to load orders.');
+          console.error(e);
+        });
+      });
+
+      // Orders table click handler
+      document.getElementById('ordersTbody')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button[data-action="deliver"]');
+        if (!btn) return;
+
+        const orderId = btn.getAttribute('data-order') || '';
+        const email = btn.getAttribute('data-email') || '';
+        const note = prompt('Optional note for the customer (leave blank if not needed):') || '';
+
+        try {
+          btn.disabled = true;
+          await sendDelivered(orderId, email, note);
+          showNotification('Delivered email sent.');
+        } catch (err) {
+          showNotification('Failed to send email. Check admin settings.');
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      // Existing manual delivered form (kept)
+      const f = document.getElementById('deliveredForm');
+      f?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const orderId = document.getElementById('deliveredOrderId')?.value?.trim();
+        const customerEmail = document.getElementById('deliveredCustomerEmail')?.value?.trim();
+        const note = document.getElementById('deliveredNote')?.value?.trim();
+
+        if (!orderId || !customerEmail) {
+          showNotification('Please fill order ID and customer email.');
+          return;
+        }
+
+        try {
+          await sendDelivered(orderId, customerEmail, note);
+          showNotification('Delivered email sent.');
+          e.target.reset();
+        } catch (err) {
+          showNotification('Failed to send email. Check admin settings.');
+          console.error(err);
+        }
+      });
+
+      // Load orders if already logged
+      fetchOrders().catch(() => {});
+    });
+
+  </script>
+</body>
+</html>
