@@ -308,16 +308,16 @@ const products = [
     {
         id: 20,
         name: '14x Server Boosts (1 Month)',
-        price: 0,
-        available: false,
+        price: 6,
+        available: true,
         category: 'Discord',
         image: 'discord-fast.jpg',
-        descEn: 'Temporarily unavailable. Contact us for pricing.',
-        descAr: 'غير متوفر حالياً. تواصل معنا لمعرفة السعر.',
-        featuresEn: ['Contact us for pricing'],
-        featuresAr: ['تواصل معنا لمعرفة السعر'],
-        deliveryEn: '—',
-        deliveryAr: '—'
+        descEn: '14 boosts for 1 month.',
+        descAr: '14 بوست لمدة شهر.',
+        featuresEn: ['High quality boosts', 'Fast delivery', 'Trusted service'],
+        featuresAr: ['بوستات قوية', 'تسليم سريع', 'خدمة موثوقة'],
+        deliveryEn: 'Fast',
+        deliveryAr: 'سريع'
     },
     {
         id: 21,
