@@ -1,9 +1,0 @@
-{
-  "name": "prime-store",
-  "private": true,
-  "version": "1.0.0",
-  "description": "Prime Store static site + Netlify Functions",
-  "dependencies": {
-    "nodemailer": "^6.9.15"
-  }
-}
