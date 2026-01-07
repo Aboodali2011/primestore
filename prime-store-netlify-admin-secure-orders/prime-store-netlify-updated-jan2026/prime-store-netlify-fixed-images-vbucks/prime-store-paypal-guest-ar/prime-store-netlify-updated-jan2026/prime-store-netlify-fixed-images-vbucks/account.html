@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>My Account • Prime Store</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <span id="profile"></span>
+  <span id="orders"></span>
+
+
+  <header class="header">
+    <nav class="navbar">
+      <div class="logo">
+        <img src="se.png" alt="Prime Store Logo" class="logo-img" />
+      </div>
+
+      <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false">☰</button>
+<ul class="nav-menu" id="navMenu">
+<li><a href="index.html#home">Home</a></li>
+<li><a href="index.html#products">Products</a></li>
+<li><a href="free.html" class="free-link">Free</a></li>
+<li><a href="index.html#contact" class="contact-link">Contact</a></li>
+<li><a href="terms.html">Terms</a></li>
+<li><a href="https://discord.gg/eNcPz4Jw2m" target="_blank" rel="noopener">Discord</a></li>
+<li id="authSlot"></li>
+</ul>
+    </nav>
+  </header>
+
+  <main class="page">
+    <section class="page-hero">
+      <div class="page-hero-inner">
+        <h1>My Account</h1>
+        <p>Manage your profile details.</p>
+      </div>
+    </section>
+
+    <section class="page-content">
+      <div class="account-card">
+        <div class="account-card-head">
+          <h2>Profile</h2>
+          <p class="muted">Update your name or email.</p>
+        </div>
+
+        <form class="account-form" id="accountForm">
+          <div class="form-group">
+            <label for="profileName">Name</label>
+            <input id="profileName" type="text" placeholder="Your name" required />
+          </div>
+
+          <div class="form-group">
+            <label for="profileEmail">Email</label>
+            <input id="profileEmail" type="email" placeholder="name@example.com" required />
+          </div>
+
+          <div class="form-actions">
+            <button class="primary-btn" type="submit">Save changes</button>
+            <button class="secondary-btn" type="button" onclick="logout(); window.location.href='index.html';">Sign out</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const auth = getAuth();
+      if (!auth || !auth.loggedIn) {
+        showNotification('Please sign in first.');
+        window.location.href = 'index.html';
+        return;
+      }
+
+      applyAuthUI();
+
+      const p = (function(){ try { return JSON.parse(localStorage.getItem('prime_profile_v1')||'null'); } catch { return null; } })();
+      document.getElementById('profileName').value = (p && p.name) ? p.name : (auth.name || '');
+      document.getElementById('profileEmail').value = (p && p.email) ? p.email : (auth.email || '');
+
+      document.getElementById('accountForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('profileName').value.trim();
+        const email = document.getElementById('profileEmail').value.trim();
+
+        if (!name || !email.includes('@')) {
+          showNotification('Please enter a valid name and email.');
+          return;
+        }
+
+        localStorage.setItem('prime_profile_v1', JSON.stringify({ name, email }));
+
+        // Keep auth in sync
+        const updated = { ...(getAuth()||{}), name, email, loggedIn:true, at: Date.now() };
+        if (localStorage.getItem(AUTH_KEY)) localStorage.setItem(AUTH_KEY, JSON.stringify(updated));
+        else sessionStorage.setItem('AUTH_KEY', JSON.stringify(updated));
+
+        showNotification('Profile updated.');
+        applyAuthUI();
+      });
+    });
+  </script>
+</body>
+</html>
