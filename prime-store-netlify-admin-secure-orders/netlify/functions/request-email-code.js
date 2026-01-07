@@ -1,4 +1,5 @@
-let codes = global.__PRIME_CODES || (global.__PRIME_CODES = new Map());
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 function cors() {
   return {
@@ -8,23 +9,31 @@ function cors() {
   };
 }
 
-const nodemailer = require('nodemailer');
-
-function getTransporter(){
+function getTransporter() {
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  if (!host || !user || !pass) throw new Error('Missing SMTP settings (SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS)');
+
+  if (!host || !user || !pass) {
+    throw new Error('Missing SMTP settings');
+  }
+
   return nodemailer.createTransport({
-    host, port,
+    host,
+    port,
     secure: port === 465,
     auth: { user, pass }
   });
 }
 
-function genCode(){
-  return String(Math.floor(100000 + Math.random()*900000)); // 6 digits
+function computeCode(email, bucket) {
+  const secret = process.env.EMAIL_CODE_SECRET || process.env.ADMIN_TOKEN_SECRET || process.env.ADMIN_PASSWORD;
+  if (!secret) throw new Error('Missing EMAIL_CODE_SECRET (or ADMIN_TOKEN_SECRET)');
+  const h = crypto.createHmac('sha256', secret).update(`${email}|${bucket}`).digest();
+  // Turn first 4 bytes into a number, then mod 1,000,000
+  const num = h.readUInt32BE(0) % 1000000;
+  return String(num).padStart(6, '0');
 }
 
 exports.handler = async (event) => {
@@ -37,12 +46,12 @@ exports.handler = async (event) => {
     const to = String(email || '').trim().toLowerCase();
     if (!to || !to.includes('@')) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid email' }) };
 
-    const code = genCode();
-    const expiresAt = Date.now() + 10*60*1000;
-    codes.set(to, { code, expiresAt });
+    const windowMs = 10 * 60 * 1000; // 10 minutes
+    const bucket = Math.floor(Date.now() / windowMs);
+    const code = computeCode(to, bucket);
 
-    const from = process.env.STORE_EMAIL || process.env.SMTP_FROM || process.env.SMTP_USER;
     const storeName = process.env.STORE_NAME || 'Prime Store';
+    const from = process.env.SMTP_FROM || process.env.STORE_EMAIL || process.env.SMTP_USER;
 
     const transporter = getTransporter();
     await transporter.sendMail({
@@ -50,7 +59,12 @@ exports.handler = async (event) => {
       to,
       subject: `Your verification code — ${storeName}`,
       text: `Your verification code is: ${code}\n\nThis code expires in 10 minutes.`,
-      html: `<div style="font-family:Arial,sans-serif"><h3>${storeName}</h3><p>Your verification code is:</p><p style="font-size:24px;letter-spacing:2px"><strong>${code}</strong></p><p style="color:#666">This code expires in 10 minutes.</p></div>`
+      html: `<div style="font-family:Arial,sans-serif">
+        <h3>${storeName}</h3>
+        <p>Your verification code is:</p>
+        <div style="font-size:28px;font-weight:700;letter-spacing:2px;margin:10px 0">${code}</div>
+        <p style="color:#666">This code expires in 10 minutes.</p>
+      </div>`
     });
 
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
